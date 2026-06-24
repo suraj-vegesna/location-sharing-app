@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "600116435445",
+    "project_id": "location-sharing-app-suraj",
+    "storage_bucket": "location-sharing-app-suraj.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:600116435445:android:c1a8f8d727058e3dbee8bc",
+        "android_client_info": {
+          "package_name": "com.locshare.locshare"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCOkBMzOzP-hM0kJ32WyvKttyFnQXK9Qfs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

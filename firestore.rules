@@ -1,0 +1,56 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isUser(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function sortedConnectionId(uid1, uid2) {
+      return uid1 <= uid2 ? uid1 + '_' + uid2 : uid2 + '_' + uid1;
+    }
+
+    function hasApprovedConnectionWith(otherUserId) {
+      let connectionId = sortedConnectionId(request.auth.uid, otherUserId);
+      return exists(/databases/$(database)/documents/connections/$(connectionId)) &&
+        get(/databases/$(database)/documents/connections/$(connectionId)).data.status == 'approved';
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isUser(userId);
+      allow update: if isUser(userId);
+    }
+
+    match /locations/{userId} {
+      allow read: if isUser(userId) || hasApprovedConnectionWith(userId);
+      allow write: if isUser(userId);
+    }
+
+    match /connections/{connectionId} {
+      allow read: if isSignedIn() && (
+        resource.data.requesterId == request.auth.uid ||
+        resource.data.recipientId == request.auth.uid
+      );
+      allow create: if isSignedIn() &&
+        request.resource.data.requesterId == request.auth.uid &&
+        request.resource.data.status == 'pending' &&
+        connectionId == sortedConnectionId(
+          request.resource.data.requesterId,
+          request.resource.data.recipientId
+        );
+      allow update: if isSignedIn() && (
+        resource.data.recipientId == request.auth.uid ||
+        resource.data.requesterId == request.auth.uid
+      );
+      allow delete: if isSignedIn() && (
+        resource.data.requesterId == request.auth.uid ||
+        resource.data.recipientId == request.auth.uid
+      );
+    }
+  }
+}
