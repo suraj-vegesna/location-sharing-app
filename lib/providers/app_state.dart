@@ -15,9 +15,9 @@ class AppState extends ChangeNotifier {
     AuthService? authService,
     LocationService? locationService,
     SharingService? sharingService,
-  })  : _authService = authService ?? AuthService(),
-        _locationService = locationService ?? LocationService(),
-        _sharingService = sharingService ?? SharingService();
+  }) : _authService = authService ?? AuthService(),
+       _locationService = locationService ?? LocationService(),
+       _sharingService = sharingService ?? SharingService();
 
   final AuthService _authService;
   final LocationService _locationService;
@@ -33,8 +33,8 @@ class AppState extends ChangeNotifier {
 
   StreamSubscription<User?>? _authSubscription;
   StreamSubscription<List<SharingConnection>>? _connectionsSubscription;
-  final Map<String, StreamSubscription<SharedLocation?>> _locationSubscriptions =
-      {};
+  final Map<String, StreamSubscription<SharedLocation?>>
+  _locationSubscriptions = {};
 
   UserProfile? get profile => _profile;
   List<SharingConnection> get connections => _connections;
@@ -53,9 +53,8 @@ class AppState extends ChangeNotifier {
       )
       .toList();
 
-  List<SharingConnection> get approvedConnections => _connections
-      .where((c) => c.status == ConnectionStatus.approved)
-      .toList();
+  List<SharingConnection> get approvedConnections =>
+      _connections.where((c) => c.status == ConnectionStatus.approved).toList();
 
   Future<void> initialize() async {
     _authSubscription = _authService.authStateChanges.listen(_onAuthChanged);
@@ -78,17 +77,28 @@ class AppState extends ChangeNotifier {
       return;
     }
 
-    _profile = await _authService.getProfile(user.uid);
-    _connectionsSubscription =
-        _sharingService.watchConnections(user.uid).listen((connections) async {
-      _connections = connections;
-      await _refreshContacts();
-      notifyListeners();
-    });
+    try {
+      _profile = await _authService.getProfile(user.uid);
+      _connectionsSubscription = _sharingService
+          .watchConnections(user.uid)
+          .listen(
+            (connections) async {
+              _connections = connections;
+              await _refreshContacts();
+              notifyListeners();
+            },
+            onError: (Object error) {
+              _setError(error.toString());
+            },
+          );
 
-    await _refreshMyLocation();
-    if (_profile?.isSharingLocation == true) {
-      await _locationService.startSharing(user.uid);
+      await _refreshMyLocation();
+      if (_profile?.isSharingLocation == true) {
+        await _locationService.startSharing(user.uid);
+      }
+      _setError(null);
+    } catch (error) {
+      _setError(error.toString());
     }
     _isLoading = false;
     notifyListeners();
@@ -108,10 +118,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> signIn({
-    required String email,
-    required String password,
-  }) async {
+  Future<void> signIn({required String email, required String password}) async {
     _setError(null);
     _profile = await _authService.signIn(email: email, password: password);
     notifyListeners();
@@ -199,22 +206,25 @@ class AppState extends ChangeNotifier {
         .toSet();
     _contactProfiles = await _sharingService.loadProfiles(allContactIds);
 
-    final approvedIds =
-        _sharingService.approvedContactIds(userId, _connections);
+    final approvedIds = _sharingService.approvedContactIds(
+      userId,
+      _connections,
+    );
 
     _clearConnectionListeners();
     _contactLocations = {};
 
     for (final contactId in approvedIds) {
-      _locationSubscriptions[contactId] =
-          _locationService.watchLocation(contactId).listen((location) {
-        if (location != null) {
-          _contactLocations[contactId] = location;
-        } else {
-          _contactLocations.remove(contactId);
-        }
-        notifyListeners();
-      });
+      _locationSubscriptions[contactId] = _locationService
+          .watchLocation(contactId)
+          .listen((location) {
+            if (location != null) {
+              _contactLocations[contactId] = location;
+            } else {
+              _contactLocations.remove(contactId);
+            }
+            notifyListeners();
+          });
     }
   }
 
